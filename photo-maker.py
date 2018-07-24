@@ -204,14 +204,18 @@ def heart(args):
 ])
 def split(args):
     """将图拆分成 AxB 的多张小网格图"""
-    im = Image.open(args.input)
-    width, height = im.size
+    try:
+        source_im = Image.open(args.input).convert('RGB')
+    except IOError:
+        print('Cannot open the source file: %s' % args.input)
+        return
+    width, height = source_im.size
     print('Image size is:  %d x %d ' % (width, height))
-    result = split_img(im, args.grid)
-    format = im.format.lower()
+    result = split_img(source_im, args.grid)
+    format = source_im.format.lower()
     for idx, im in enumerate(result):
         im.save('%s/%s%d.%s' % (args.output, args.prefix, idx, format))
-    print('All done, Save result file to : %s' % args.output)
+    print('All done, Save result file to dir: %s' % args.output)
 
 
 @subcommand([
@@ -256,7 +260,7 @@ def mosaic(args):
     try:
         source_im = Image.open(args.input).convert('RGB')
     except IOError:
-        print('Cannot open the source file: %s', args.input)
+        print('Cannot open the source file: %s' % args.input)
         return
     original_width, original_height = source_im.size
     if args.ratio <= 0:
@@ -406,7 +410,7 @@ def ascii(args):
     try:
         source_im = Image.open(args.input)
     except IOError:
-        print('Cannot open the source file: %s', args.input)
+        print('Cannot open the source file: %s' % args.input)
         return
     original_width, original_height = source_im.size
     print('Got image size: %d x %d ' % (original_width, original_height))

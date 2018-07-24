@@ -15,7 +15,7 @@ Photo-Maker 是一个用于生成和制作各种有趣的图片脚本， 使用 
 
 # 使用方式
 
-请执行执行 `python photo-maker.py -h` 查看帮助。
+请执行 `python photo-maker.py -h` 查看帮助。
 
 ```
 usage: photo-maker.py [-h] {heart,split,mosaic,ascii} ...
@@ -48,9 +48,11 @@ Source Code: http://github.com/shellvon/photo-maker
 
 # Examples
 
+所有的例子输出均放在了 [examples](./exmamples) 目录下，可自行查看。
+
 ## 微信❤️型九宫格
 
-```python
+```
 usage: photo-maker.py heart [-h] [-d DIR] [--autofill] [--padding PADDING]
                             [--size SIZE] [-s]
                             [-e EXTENSIONS [EXTENSIONS ...]] [--intermediate]
@@ -108,23 +110,33 @@ optional arguments:
 ```
 
 
-
 ![heart.png](./examples/heart.png)
+
+
 
 # Split 拆分图
 
-<img align="left" width="200" height="200" src="./examples/grid_0.png">
-<img align="right" width="200" height="200" src="./examples/grid_1.png">
-<img align="left" width="200" height="200" src="./examples/grid_2.png" >
-<img align="right" width="200" height="200" src="./examples/grid_3.png">
+<div align="center">
+<img width="width: 20%" src="./examples/grid_0.png" >
+<img width="width: 20%" src="./examples/grid_1.png">
+<img width="width: 20%" src="./examples/grid_2.png" >
+<img width="width: 20%" src="./examples/grid_3.png">
+</div>
+
 
 # 相片马赛克
+
+由于马赛克需要许多小图，因此此脚本默认提供了800+张emoji表情用于当tile,您可以自己提供自己的图片文件夹进行制作tile.需要注意的是文件不要太大，否则会很慢。
 
 ![mosaic](./examples/mosaic.png)
 
 
-
 # ASCII Art
+
+源图片来自: [tiles/emoji/1.png](./tiles/emoji/1.png)
+
+
+![tiles/emoji/1.png](./tiles/emoji/1.png)
 
 ```
 ------------------------------------------------

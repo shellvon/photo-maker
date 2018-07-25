@@ -390,7 +390,8 @@ def get_color_diff(color1, color2):
 
 def group_chunk(iterable, chunk_size=20):
     """将一个迭代器拆分成多个chunk"""
-    return zip(*([iter(iterable)] * chunk_size))
+    for i in range(0, len(iterable), chunk_size):
+        yield iterable[i:i+chunk_size]
 
 
 def flatten(iterable):

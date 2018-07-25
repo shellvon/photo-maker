@@ -12,13 +12,18 @@ import textwrap
 import itertools
 import multiprocessing
 from functools import partial
-from PIL import Image, ImageOps, ImageStat
+from PIL import Image, ImageOps, ImageStat, PngImagePlugin
 
 # Python 2 && Python3
 zip = getattr(itertools, 'izip', zip)
 
 __author__ = 'shellvon'
 __email__ = 'iamshellvon@gmail.com'
+
+# Dirty Fixed shellvon/photo-maker#1
+# See https://github.com/python-pillow/Pillow/issues/1434
+
+PngImagePlugin.iTXt.__getnewargs__ = lambda x: (x.__str__(), '', '')
 
 cli = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                               description=textwrap.dedent('''\
@@ -78,11 +83,14 @@ def size_type(s, sep='x'):
               default=(1920, 1920), type=size_type),
     arguments('-s', '--shuffle', dest='shuffle', help='shuffle the image file list', action='store_true',
               default=False),
-    arguments('-e', '--extensions', dest='extensions', help='image file type, default is png,jpg,jpeg', default=('png', 'jpg', 'jpeg'),
+    arguments('-e', '--extensions', dest='extensions', help='image file type, default is png,jpg,jpeg',
+              default=('png', 'jpg', 'jpeg'),
               nargs='+'),
-    arguments('--intermediate', dest='intermediate', help='save intermediate file, default is False', action='store_true',
+    arguments('--intermediate', dest='intermediate', help='save intermediate file, default is False',
+              action='store_true',
               default=False),
-    arguments('-o', '--output', dest='output', help='output image filename, default is collage.png', default='collage.png'),
+    arguments('-o', '--output', dest='output', help='output image filename, default is collage.png',
+              default='collage.png'),
 
 ])
 def heart(args):
@@ -136,7 +144,7 @@ def heart(args):
     padding = args.padding
     save_intermediate = args.intermediate
     if size[0] != size[1]:
-        print('SIZE ERROR! Heart layout picture must be square.')
+        print('Size error! Heart layout picture must be square.')
         exit(1)
 
     l = len(image_files)
@@ -185,7 +193,7 @@ def heart(args):
         need_pic_cnt = pics_cnt_table[seq]
         sources, images = image_files[:need_pic_cnt], image_files[need_pic_cnt:]
         left = (seq % 3) == 0
-        print('draw images at seq %d, is left: %s, cnt: %d, save intermediate: %s' % (
+        print('Draw images at seq %d, is left: %s, cnt: %d, save intermediate: %s' % (
             seq, left, need_pic_cnt, save_intermediate))
         draw_to_canvas(canvas, sources, left=left)
         box = ((seq % 3) * (grid_size[0] + padding), (seq // 3) * (grid_size[1] + padding))
@@ -225,14 +233,17 @@ def split(args):
     arguments('--no-repeat', dest='no_repeat', help='no repeat use tile', action='store_true', default=False),
     arguments('-o', '--output', dest='output', help='the output filename, default is: mosaic.png',
               default='mosaic.png'),
-    arguments('-d', '--dir', dest='dir', help='directory of the images, default is ./tiles/emoji', default='./tiles/emoji'),
+    arguments('-d', '--dir', dest='dir', help='directory of the images, default is ./tiles/emoji',
+              default='./tiles/emoji'),
+    arguments('-e', '--extensions', dest='extensions', help='tile image file type, default is png,jpg,jpeg',
+              default=('png', 'jpg', 'jpeg'),
+              nargs='+'),
     arguments('-z', '--zoom', dest='zoom', help='zoom zhe result image, default is 1', default=1, type=int),
 ])
 def mosaic(args):
     """
     相片马赛克, 即蒙太奇照片。 给定一张照片,和一个文件夹目录,系统将利用文件夹内
     所对应的照片生成给定的这张照片,为了达到这个效果,文件夹内的目录的照片越多越好
-    系统会检查总张树小于 100 张时则直接失败(有个2000张以上是最好不过的咯)
 
     Step 0: 预处理tiles文件(处理成相同大小/长宽比等)
     Step 1: 读取目标文件(input source file) 并将其拆分为 AxB 的网格.
@@ -283,8 +294,12 @@ def mosaic(args):
     worker_cnt = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(worker_cnt)
 
-    filenames = list(get_tile_filenames(args.dir))
-
+    filenames = list(get_tile_filenames(args.dir, args.extensions))
+    tiles_count = len(filenames)
+    if tiles_count < 50:
+        print('Tiles not enough in dir %s with extensions %s (total found: %d)' % (
+            args.dir, args.extensions, tiles_count))
+        return
     chunk_size = min(100, len(filenames))
     print('Got %d tile files, tile size: %s' % (len(filenames), tile_size))
 
@@ -319,12 +334,13 @@ def mosaic(args):
     pool.close()
     pool.join()
     # background.show()
+    print('Save result file to: %s' % args.output)
     background.save(args.output)
-    print('All done, Save result file to : %s' % args.output)
+    print('All done')
 
 
 def get_tile_filenames(directory, extensions=None):
-    print('get the tile filename list from %s' % directory)
+    print('Lookup the tile filename list from %s' % directory)
     extensions = extensions or ['jpg', 'png', 'jpeg']
     for fn in os.listdir(directory):
         ext = fn.split('.')[-1].lower()
@@ -420,14 +436,14 @@ def ascii(args):
     row = int(original_height * col * 0.5 / original_width)
     tile_imgs = split_img(source_im, (row, col))
     pool = multiprocessing.Pool()
-    print('try to calculate intensity')
+    print('Try to calculate intensity')
 
     ascii_image_chars = pool.map(partial(get_string_by_imgs, chars_table=grey_scale),
                                  group_chunk(tile_imgs, col))
     pool.close()
     pool.join()
 
-    print('write to file: %s' % args.output.name)
+    print('Write to file: %s' % args.output.name)
     args.output.write('\n'.join(ascii_image_chars))
     print('\n\nAll done!')
 

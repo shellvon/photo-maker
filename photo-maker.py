@@ -6,11 +6,11 @@
 
 import os
 import argparse
-import math
 import random
 import textwrap
 import itertools
 import multiprocessing
+from datetime import datetime
 from functools import partial
 from PIL import Image, ImageOps, ImageStat, PngImagePlugin
 
@@ -44,6 +44,46 @@ cli = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatt
                                             '''),
                               epilog='Source Code: http://github.com/shellvon/photo-maker')
 subparsers = cli.add_subparsers(dest='subcommand')
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
+
+IS_WIN = os.name == 'nt'
+
+
+def echo(msg, level='INFO'):
+    """支持颜色输出"""
+    level = level.upper()
+
+    def colored(text, color=30, bgcolor=49, style=0):
+        """
+        color   30:黑,31:红,32:绿,33:黄,34:蓝色,35:紫色,36:深绿,37:白色
+        bgcolor 40:黑, 41:深红,42:绿,43:黄色,44:蓝色,45:紫色,46:深绿,47:白色
+        style   0:无样式,1:高亮/加粗,4:下换线,7:反显
+        """
+        hehe = {'text': text, 'color': color, 'bgcolor': bgcolor, 'style': style}
+        str_to_color = "\033[{style};{color};{bgcolor}m{text}\033[0m".format(**hehe)
+        return str_to_color
+
+    level_to_color_map = {
+        'WARNING': YELLOW,
+        'INFO': WHITE,
+        'DEBUG': BLUE,
+        'ERROR': RED,
+    }
+    if not IS_WIN and level in level_to_color_map:
+        level_color = level_to_color_map[level]
+        bold = 1
+    else:
+        bold = 0
+        level_color = BLACK
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    prefix = colored(
+        '[{level_name:<8s}{time_str}]'.format(level_name=level,
+                                              time_str=now),
+        color=level_color, style=bold)
+
+    msg = colored(msg, color=level_color, bgcolor=49, style=0)
+    print('{prefix} {msg}'.format(prefix=prefix, msg=msg))
 
 
 def arguments(*args, **kwargs):
@@ -133,27 +173,27 @@ def heart(args):
     image_files = [os.path.join(args.dir, fn) for fn in os.listdir(args.dir) if
                    fn.split('.')[-1].lower() in args.extensions]
     if not image_files:
-        print('Bad directory! Please select other directory containing images')
+        echo('Bad directory! Please select other directory containing images', 'error')
         exit(1)
-    print('Got [%d] images to make photo collage with extension: %s' % (len(image_files), args.extensions))
+    echo('Got [%d] images to make photo collage with extension: %s' % (len(image_files), args.extensions))
     if args.shuffle:
-        print('Shuffle the images')
+        echo('Shuffle the images')
         random.shuffle(image_files)
 
     size = args.size
     padding = args.padding
     save_intermediate = args.intermediate
     if size[0] != size[1]:
-        print('Size error! Heart layout picture must be square.')
+        echo('Size error! Heart layout picture must be square.', 'error')
         exit(1)
 
     l = len(image_files)
     pics_cnt_table = [3, 5, 3, 8, 9, 8, 1, 7, 1]
     total_pic_needed = sum(pics_cnt_table)
     if l < total_pic_needed and not args.autofill:
-        print('Too few pictures to generate heart layout, need %d pictures.' % (total_pic_needed,))
+        echo('Too few pictures to generate heart layout, need %d pictures.' % (total_pic_needed,), 'error')
         exit(1)
-    # auto fille
+    # auto fill
     while l < total_pic_needed:
         image_files.extend(image_files)
         l = len(image_files)
@@ -193,7 +233,7 @@ def heart(args):
         need_pic_cnt = pics_cnt_table[seq]
         sources, images = image_files[:need_pic_cnt], image_files[need_pic_cnt:]
         left = (seq % 3) == 0
-        print('Draw images at seq %d, is left: %s, cnt: %d, save intermediate: %s' % (
+        echo('Draw images at seq %d, is left: %s, cnt: %d, save intermediate: %s' % (
             seq, left, need_pic_cnt, save_intermediate))
         draw_to_canvas(canvas, sources, left=left)
         box = ((seq % 3) * (grid_size[0] + padding), (seq // 3) * (grid_size[1] + padding))
@@ -201,7 +241,7 @@ def heart(args):
         if save_intermediate:
             canvas.save('intermediate_%d.png' % seq)
     background.save(args.output)
-    print('All done, Save result file to : %s' % args.output)
+    echo('All done, Save result file to : %s' % args.output)
 
 
 @subcommand([
@@ -213,17 +253,17 @@ def heart(args):
 def split(args):
     """将图拆分成 AxB 的多张小网格图"""
     try:
-        source_im = Image.open(args.input).convert('RGB')
+        source_im = read_img(args.input, mode='RGB')
     except IOError:
-        print('Cannot open the source file: %s' % args.input)
+        echo('Cannot open the source file: %s' % args.input, 'error')
         return
     width, height = source_im.size
-    print('Image size is:  %d x %d ' % (width, height))
+    echo('Image size is:  %d x %d ' % (width, height), 'debug')
     result = split_img(source_im, args.grid)
     format = source_im.format.lower()
     for idx, im in enumerate(result):
         im.save('%s/%s%d.%s' % (args.output, args.prefix, idx, format))
-    print('All done, Save result file to dir: %s' % args.output)
+    echo('All done, Save result file to dir: %s' % args.output)
 
 
 @subcommand([
@@ -269,23 +309,23 @@ def mosaic(args):
     """
 
     try:
-        source_im = Image.open(args.input).convert('RGB')
+        source_im = read_img(args.input, mode='RGB')
     except IOError:
-        print('Cannot open the source file: %s' % args.input)
+        echo('Cannot open the source file: %s' % args.input, 'error')
         return
     original_width, original_height = source_im.size
     if args.ratio <= 0:
-        print('Ratio must be >= 1')
+        echo('Ratio must be >= 1', 'error')
         return
     if not os.path.exists(args.dir):
-        print('Dir [%s] does not exists' % args.dir)
+        echo('Dir [%s] does not exists' % args.dir, 'error')
         return
 
     zoom = args.zoom
 
     row, col = original_height // args.ratio, original_width // args.ratio
 
-    print('Split the input images, source file size: %s, zoom: %d, grid size: %s' % (
+    echo('Split the input images, source file size: %s, zoom: %d, grid size: %s' % (
         source_im.size, args.zoom, (row, col)))
     grid_images = split_img(source_im, (row, col))
 
@@ -297,27 +337,27 @@ def mosaic(args):
     filenames = list(get_tile_filenames(args.dir, args.extensions))
     tiles_count = len(filenames)
     if tiles_count < 50:
-        print('Tiles not enough in dir %s with extensions %s (total found: %d)' % (
-            args.dir, args.extensions, tiles_count))
+        echo('Tiles not enough in dir %s with extensions %s (total found: %d)' % (
+            args.dir, args.extensions, tiles_count), 'warning')
         return
     chunk_size = min(100, len(filenames))
-    print('Got %d tile files, tile size: %s' % (len(filenames), tile_size))
+    echo('Got %d tile files, tile size: %s' % (len(filenames), tile_size))
 
-    print('Prepare tiles')
+    echo('Prepare tiles')
 
     # 获取tiles Images对象
     tiles = list(flatten(pool.map(partial(load_tiles, size=tile_size), list(group_chunk(filenames, chunk_size)))))
-    print('Calculate average color of tiles')
+    echo('Calculate average color of tiles')
     # 批量获取每一张tile图片的平均RGB值
     avg_color_of_tile_imgs = pool.map(get_average_color, tiles)
 
-    print('Calculate average color of source image')
+    echo('Calculate average color of source image')
     # 批量获取每一张源文件grid图的RGB值
     avg_color_of_source_imgs = pool.map(get_average_color, grid_images)
 
     background = Image.new('RGB', (tile_size[0] * col, tile_size[1] * row))
 
-    print('Try to generating mosaic pic')
+    echo('Try to generating mosaic pic')
     for seq, color in enumerate(avg_color_of_source_imgs):
         closet_match = pool.map(partial(find_closet_match, color),
                                 list(group_chunk(avg_color_of_tile_imgs, chunk_size)))
@@ -329,18 +369,18 @@ def mosaic(args):
         n = seq // col  # 当前tile 所在的二维坐标(行)
 
         if seq % 300 == 0:
-            print('Get best tile at pos: (%d, %d) file: %s, diff: %.2f' % (n, m, filenames[best_index], diff))
+            echo('Get best tile at pos: (%d, %d) file: %s, diff: %.2f' % (n, m, filenames[best_index], diff), 'debug')
         background.paste(best_tile, (tile_size[0] * m, tile_size[1] * n))
     pool.close()
     pool.join()
     # background.show()
-    print('Save result file to: %s' % args.output)
+    echo('Save result file to: %s' % args.output)
     background.save(args.output)
-    print('All done')
+    echo('All done')
 
 
 def get_tile_filenames(directory, extensions=None):
-    print('Lookup the tile filename list from %s' % directory)
+    echo('Lookup the tile filename list from %s' % directory, 'debug')
     extensions = extensions or ['jpg', 'png', 'jpeg']
     for fn in os.listdir(directory):
         ext = fn.split('.')[-1].lower()
@@ -351,9 +391,9 @@ def get_tile_filenames(directory, extensions=None):
 
 
 def load_tiles(filenames, size=(32, 32)):
-    print('Try to load tiles from %d files, size: %s' % (len(filenames), size))
-    tiles = [ImageOps.fit(Image.open(fn).convert('RGB'), size, method=Image.ANTIALIAS) for fn in filenames]
-    print('Got %d tiles' % len(tiles))
+    echo('Try to load tiles from %d files, size: %s' % (len(filenames), size), 'debug')
+    tiles = [ImageOps.fit(read_img(fn, mode='RGB'), size, method=Image.ANTIALIAS) for fn in filenames]
+    echo('Got %d tiles' % len(tiles), 'debug')
     return tiles
 
 
@@ -385,13 +425,14 @@ def find_closet_match(color, tile_colors):
 
 def get_color_diff(color1, color2):
     """计算俩颜色之间的差异"""
-    return math.sqrt((color1[0] - color2[0]) ** 2 + (color1[1] - color2[1]) ** 2 + (color1[2] - color2[2]) ** 2)
+    # 小优化, 因为 sqrt 函数是单调递增的,可以不用开方..
+    return (color1[0] - color2[0]) ** 2 + (color1[1] - color2[1]) ** 2 + (color1[2] - color2[2]) ** 2
 
 
 def group_chunk(iterable, chunk_size=20):
     """将一个迭代器拆分成多个chunk"""
     for i in range(0, len(iterable), chunk_size):
-        yield iterable[i:i+chunk_size]
+        yield iterable[i:i + chunk_size]
 
 
 def flatten(iterable):
@@ -422,31 +463,31 @@ def ascii(args):
     # Please See here: http://paulbourke.net/dataformats/asciiart/
     grey_scale = '''$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,"^`'. '''
     if args.simple:
-        print('Use simple mode..')
+        echo('Use simple mode..', 'debug')
         grey_scale = '@%#*+=-:. '
     try:
-        source_im = Image.open(args.input)
+        source_im = read_img(args.input)
     except IOError:
-        print('Cannot open the source file: %s' % args.input)
+        echo('Cannot open the source file: %s' % args.input, 'error')
         return
     original_width, original_height = source_im.size
-    print('Got image size: %d x %d ' % (original_width, original_height))
+    echo('Got image size: %d x %d ' % (original_width, original_height))
 
     # 计算需要的行和列
     col = min(args.col, original_width)
     row = int(original_height * col * 0.5 / original_width)
     tile_imgs = split_img(source_im, (row, col))
     pool = multiprocessing.Pool()
-    print('Try to calculate intensity')
+    echo('Try to calculate intensity')
 
     ascii_image_chars = pool.map(partial(get_string_by_imgs, chars_table=grey_scale),
                                  group_chunk(tile_imgs, col))
     pool.close()
     pool.join()
 
-    print('Write to file: %s' % args.output.name)
+    echo('Write to file: %s' % args.output.name)
     args.output.write('\n'.join(ascii_image_chars))
-    print('\n\nAll done!')
+    echo('\n\nAll done!')
 
 
 def get_string_by_imgs(img, chars_table='@%#*+=-:. '):
@@ -458,6 +499,39 @@ def get_string_by_imgs(img, chars_table='@%#*+=-:. '):
         intensity = int(size * sum(avg_color) * 1. / len(avg_color) / 255)
         chars.append(chars_table[intensity])
     return ''.join(chars)
+
+
+def read_img(file_or_image, fixed_orientation=True, mode=None):
+    """读取图片文件，但是支持修复方向
+    See https://github.com/shellvon/photo-maker/issues/2
+    """
+    if isinstance(file_or_image, (Image.Image,)):
+        im = input
+    else:
+        im = Image.open(file_or_image)
+    if not fixed_orientation:
+        return im.convert(mode) if mode else im
+
+    # 不能先convert 否则exif信息读不到.
+    exif_orientation_tag = 274
+    orientation_maps = {
+        3: Image.ROTATE_180,
+        6: Image.ROTATE_270,
+        8: Image.ROTATE_90,
+    }
+    try:
+        orientation = im._getexif()[exif_orientation_tag]
+        if orientation in orientation_maps:
+            degree = orientation_maps[orientation]
+            # use rotate with expand param is same as transpose
+            # See https://github.com/python-pillow/Pillow/issues/1746
+            im = im.transpose(degree)
+    except (TypeError, AttributeError, KeyError, IndexError):
+        # cases: image don't have getexif
+        pass
+    if mode:
+        im = im.convert(mode)
+    return im
 
 
 def main():

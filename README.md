@@ -117,10 +117,10 @@ optional arguments:
 # Split 拆分图
 
 <div align="center">
-<img width="width: 20%" src="./examples/grid_0.png" >
-<img width="width: 20%" src="./examples/grid_1.png">
-<img width="width: 20%" src="./examples/grid_2.png" >
-<img width="width: 20%" src="./examples/grid_3.png">
+<img width="width: 200px" src="./examples/grid_0.png" >
+<img width="width: 200px" src="./examples/grid_1.png">
+<img width="width: 200px" src="./examples/grid_2.png" >
+<img width="width: 200px" src="./examples/grid_3.png">
 </div>
 
 
@@ -133,10 +133,10 @@ optional arguments:
 
 # ASCII Art
 
-源图片来自: [tiles/emoji/1.png](./tiles/emoji/1.png)
+源图片来自: [examples/sharp.png](./examples/sharp.png)
 
 
-![tiles/emoji/1.png](./tiles/emoji/1.png)
+![examples/sharp.png](./examples/sharp.png)
 
 ```
 ------------------------------------------------

@@ -487,7 +487,8 @@ def ascii(args):
 
     echo('Write to file: %s' % args.output.name)
     args.output.write('\n'.join(ascii_image_chars))
-    echo('\n\nAll done!')
+    print('\n\n')
+    echo('All done!')
 
 
 def get_string_by_imgs(img, chars_table='@%#*+=-:. '):

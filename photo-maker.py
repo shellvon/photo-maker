@@ -4,7 +4,9 @@
 用于生成各种有趣图片的简单脚本
 """
 
+from __future__ import unicode_literals
 import os
+import sys
 import argparse
 import random
 import textwrap
@@ -13,6 +15,23 @@ import multiprocessing
 from datetime import datetime
 from functools import partial
 from PIL import Image, ImageOps, ImageStat, PngImagePlugin
+
+IS_PY2 = sys.version_info[0] is 2
+
+
+def safe_str(s, encoding='utf-8', errors='strict'):
+    """始终返回 <str>"""
+    if IS_PY2 and isinstance(s, unicode):
+        return s.encode(encoding, errors)
+    if not IS_PY2 and isinstance(s, bytes):
+        return s.decode(encoding, errors)
+    return s
+
+
+def safe_text(s, encoding='utf-8', errors='strict'):
+    """Python2的时候返回 <unicode>, Python3的时候返回<str>"""
+    return s.decode(encoding, errors) if isinstance(s, str if IS_PY2 else bytes) else s
+
 
 # Python 2 && Python3
 zip = getattr(itertools, 'izip', zip)
@@ -446,8 +465,12 @@ def flatten(iterable):
     arguments('-s', '--simple', dest='simple', help='use simple output mode (less ascii char) default is false',
               action='store_true',
               default=False),
+    arguments('--grey-scale', dest='grey_scale', help='specific your custom grey scale char table', required=False,
+              nargs='+'),
     arguments('-o', '--output', dest='output', help='output filename, default is <STDOUT>', type=argparse.FileType('w'),
               default='-'),
+    arguments('-r', '--ratio', dest='ratio', help='the ratio, default is 0.5, useful when you change grey scale',
+              default=0.5, type=float),
 
 ])
 def ascii(args):
@@ -460,11 +483,23 @@ def ascii(args):
         Step 2. 计算每一张小图的灰度强弱(calculate intensity, A: 再次利用平均RGB, B: 转化为greyscale图.)
         Step 3. 替换为对应强度的字符进行展示
     """
-    # Please See here: http://paulbourke.net/dataformats/asciiart/
-    grey_scale = '''$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,"^`'. '''
-    if args.simple:
+    if args.ratio <=0:
+        echo('-r/--ratio can not be <=0', 'error')
+        return
+    grey_scale = args.grey_scale or []
+    grey_scale = list(map(safe_text, grey_scale))
+    if grey_scale and len(grey_scale) == 1:
+        # 如果只有一个元素,那么应该是一次性给的, 尝试拆分成char array.
+        grey_scale = list(safe_text(grey_scale[0]))
+    if grey_scale and args.simple:
+        echo('Both -s and --grey-scale specific, ignore -s', 'WARNING')
+    elif not grey_scale:
+        # Please See here: http://paulbourke.net/dataformats/asciiart/
+        grey_scale = '''$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,"^`'. '''
+    elif args.simple:
         echo('Use simple mode..', 'debug')
         grey_scale = '@%#*+=-:. '
+
     try:
         source_im = read_img(args.input)
     except IOError:
@@ -475,7 +510,7 @@ def ascii(args):
 
     # 计算需要的行和列
     col = min(args.col, original_width)
-    row = int(original_height * col * 0.5 / original_width)
+    row = int(original_height * col * args.ratio / original_width)
     tile_imgs = split_img(source_im, (row, col))
     pool = multiprocessing.Pool()
     echo('Try to calculate intensity')
@@ -486,7 +521,8 @@ def ascii(args):
     pool.join()
 
     echo('Write to file: %s' % args.output.name)
-    args.output.write('\n'.join(ascii_image_chars))
+    s = safe_str('\n'.join(ascii_image_chars))
+    args.output.write(s)
     print('\n\n')
     echo('All done!')
 

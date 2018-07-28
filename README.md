@@ -165,4 +165,6 @@ optional arguments:
 --n$*c/\||||||||||||||||||||||||||||||||||||||\r
 ```
 
- 
+现在, 您可以自己指定grey-scale来输出你要的照片了.
+
+![examples/custom_grey_scale.png](./examples/custom_grey_scale.png)

@@ -543,7 +543,7 @@ def read_img(file_or_image, fixed_orientation=True, mode=None):
     See https://github.com/shellvon/photo-maker/issues/2
     """
     if isinstance(file_or_image, (Image.Image,)):
-        im = input
+        im = file_or_image
     else:
         im = Image.open(file_or_image)
     if not fixed_orientation:
